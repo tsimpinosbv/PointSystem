@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Υπολογισμός Βαθμών — Beach Volley</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --court-teal-900:#07302c;
+    --court-teal-800:#0b3d38;
+    --court-teal-700:#124f48;
+    --sand:#e9dcc0;
+    --sand-light:#f4ecd8;
+    --line-white:#f7f3e8;
+    --gold:#f2a93b;
+    --gold-dim:#c98a2c;
+    --silver:#c9d3d6;
+    --bronze:#c98452;
+    --ink:#0c211f;
+    --danger:#c0503f;
+    --shadow: 0 8px 24px rgba(6,30,27,0.28);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 12% -10%, rgba(242,169,59,0.14), transparent 45%),
+      linear-gradient(180deg, var(--court-teal-900) 0%, var(--court-teal-800) 55%, var(--court-teal-700) 100%);
+    font-family:'IBM Plex Sans', sans-serif;
+    color: var(--line-white);
+    padding: 0 0 60px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px;}
+
+  /* header */
+  header{
+    padding:48px 24px 32px;
+    position:relative;
+    overflow:hidden;
+  }
+  header::before{
+    content:"";
+    position:absolute; left:0; right:0; top:0; height:100%;
+    background-image: repeating-linear-gradient(90deg, rgba(247,243,232,0.05) 0 1px, transparent 1px 64px);
+    pointer-events:none;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color: var(--gold);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:14px;
+  }
+  .eyebrow .dash{width:28px;height:1px;background:var(--gold);display:inline-block;}
+  h1{
+    font-family:'Space Grotesk', sans-serif;
+    font-size: clamp(30px, 5vw, 46px);
+    font-weight:700;
+    margin:0 0 10px;
+    line-height:1.05;
+    letter-spacing:-0.01em;
+  }
+  header p{
+    max-width:620px;
+    color:rgba(247,243,232,0.72);
+    font-size:15px;
+    line-height:1.6;
+    margin:0;
+  }
+
+  /* panel */
+  .panel{
+    background: rgba(247,243,232,0.05);
+    border:1px solid rgba(247,243,232,0.14);
+    border-radius:14px;
+    padding:22px;
+    margin-bottom:22px;
+    backdrop-filter: blur(6px);
+  }
+  .panel h2{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:.12em;
+    color:var(--gold);
+    margin:0 0 16px;
+    font-weight:600;
+  }
+
+  .presets{
+    display:flex; flex-wrap:wrap; gap:10px; margin-bottom:22px;
+  }
+  .preset-btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    background:transparent;
+    border:1px solid rgba(247,243,232,0.28);
+    color: var(--line-white);
+    padding:10px 16px;
+    border-radius:8px;
+    cursor:pointer;
+    transition:.15s ease;
+    letter-spacing:.01em;
+  }
+  .preset-btn:hover{ border-color: var(--gold); color: var(--gold); }
+  .preset-btn.active{
+    background: var(--gold);
+    border-color: var(--gold);
+    color: var(--court-teal-900);
+    font-weight:600;
+  }
+
+  .controls-row{
+    display:flex; flex-wrap:wrap; gap:24px; align-items:flex-end;
+  }
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field label{
+    font-size:12px; text-transform:uppercase; letter-spacing:.08em;
+    color:rgba(247,243,232,0.6);
+    font-family:'IBM Plex Mono', monospace;
+  }
+  .field input[type=number], .field input[type=text]{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:16px;
+    background: rgba(7,48,44,0.6);
+    border:1px solid rgba(247,243,232,0.3);
+    border-radius:8px;
+    padding:9px 12px;
+    color: var(--line-white);
+    width:140px;
+  }
+  .field input:focus{ outline:2px solid var(--gold); outline-offset:1px; }
+  .field .hint{ font-size:11.5px; color:rgba(247,243,232,0.45); max-width:220px; line-height:1.4; }
+
+  .ghost-btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    background:transparent;
+    border:1px dashed rgba(247,243,232,0.4);
+    color: rgba(247,243,232,0.85);
+    padding:9px 14px;
+    border-radius:8px;
+    cursor:pointer;
+  }
+  .ghost-btn:hover{ border-color: var(--line-white); }
+
+  /* table */
+  .table-scroll{
+    overflow-x:auto;
+    border-radius:14px;
+    border:1px solid rgba(247,243,232,0.14);
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    background: rgba(12,33,31,0.35);
+    min-width:640px;
+  }
+  thead th{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    text-transform:uppercase;
+    letter-spacing:.1em;
+    text-align:left;
+    padding:14px 16px;
+    background: rgba(247,243,232,0.06);
+    color: rgba(247,243,232,0.6);
+    border-bottom:1px solid rgba(247,243,232,0.16);
+    position:sticky; top:0;
+  }
+  tbody td{
+    padding:11px 16px;
+    border-bottom:1px dashed rgba(247,243,232,0.12);
+    font-size:15px;
+    vertical-align:middle;
+  }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background: rgba(247,243,232,0.04); }
+
+  .pos-cell{ display:flex; align-items:center; gap:10px; }
+  .pos-badge{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    font-size:13px;
+    width:34px; height:34px;
+    border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    background: rgba(247,243,232,0.08);
+    color: rgba(247,243,232,0.7);
+    flex-shrink:0;
+  }
+  tr[data-rank="1"] .pos-badge{ background: var(--gold); color:var(--court-teal-900); }
+  tr[data-rank="2"] .pos-badge{ background: var(--silver); color:var(--court-teal-900); }
+  tr[data-rank="3"] .pos-badge{ background: var(--bronze); color:var(--court-teal-900); }
+
+  .pos-input{
+    width:44px;
+    background:transparent;
+    border:none;
+    border-bottom:1px solid transparent;
+    color: rgba(247,243,232,0.75);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    text-align:center;
+  }
+  .pos-input:focus{ border-bottom-color: var(--gold); outline:none; }
+
+  .num-input{
+    width:90px;
+    background: rgba(247,243,232,0.06);
+    border:1px solid rgba(247,243,232,0.18);
+    border-radius:6px;
+    color: var(--line-white);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:14px;
+    padding:6px 8px;
+  }
+  .num-input:focus{ outline:1px solid var(--gold); }
+
+  .computed{
+    font-family:'IBM Plex Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight:600;
+    font-size:15.5px;
+  }
+  .computed.team{ color: var(--gold); }
+  .computed.athlete{ color: var(--line-white); }
+
+  .row-del{
+    background:none; border:none; color:rgba(247,243,232,0.35);
+    cursor:pointer; font-size:16px; padding:4px 8px; border-radius:6px;
+  }
+  .row-del:hover{ color: var(--danger); background: rgba(192,80,63,0.12); }
+
+  .table-footer{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px 16px; background: rgba(247,243,232,0.04);
+  }
+
+  /* export bar */
+  .export-bar{
+    display:flex; flex-wrap:wrap; gap:12px; margin-top:20px;
+  }
+  .btn{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:14px;
+    padding:13px 22px;
+    border-radius:9px;
+    border:none;
+    cursor:pointer;
+    display:flex; align-items:center; gap:9px;
+    transition:.15s ease;
+  }
+  .btn-primary{ background: var(--gold); color: var(--court-teal-900); }
+  .btn-primary:hover{ background:#ffbb52; transform: translateY(-1px); }
+  .btn-secondary{
+    background: rgba(247,243,232,0.08);
+    color: var(--line-white);
+    border:1px solid rgba(247,243,232,0.28);
+  }
+  .btn-secondary:hover{ background: rgba(247,243,232,0.14); }
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+    background: var(--line-white); color: var(--court-teal-900);
+    font-family:'IBM Plex Mono', monospace; font-size:13px;
+    padding:12px 20px; border-radius:8px; box-shadow: var(--shadow);
+    opacity:0; transition: .25s ease; pointer-events:none;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  footer{
+    margin-top:40px;
+    color: rgba(247,243,232,0.4);
+    font-size:12.5px;
+    line-height:1.7;
+  }
+  footer a{ color: rgba(247,243,232,0.6); }
+
+  @media (max-width:640px){
+    .controls-row{ gap:16px; }
+    .field input[type=number]{ width:110px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow"><span class="dash"></span>ΒΑΘΜΟΛΟΓΙΑ ΚΑΤΑΤΑΞΗΣ &mdash; BEACH VOLLEY</div>
+    <h1>Υπολογισμός βαθμών με δυναμικό συντελεστή</h1>
+    <p>Επίλεξε ταμπλό, όρισε τον συντελεστή του τουρνουά και οι βαθμοί ομάδας &amp; αθλητή υπολογίζονται αυτόματα για κάθε θέση. Μπορείς να επεξεργαστείς οποιοδήποτε κελί, να προσθέσεις γραμμές, και να κατεβάσεις το αποτέλεσμα σε Excel.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="panel">
+    <h2>Τύπος Ταμπλό</h2>
+    <div class="presets" id="presetButtons"></div>
+
+    <div class="controls-row">
+      <div class="field">
+        <label for="coefficient">Συντελεστής</label>
+        <input type="number" id="coefficient" step="0.01" value="1">
+        <div class="hint">Ο συντελεστής της διοργάνωσης (π.χ. 0.1 / 0.4 / 1.7). Πολλαπλασιάζει όλες τις βασικές τιμές του πίνακα.</div>
+      </div>
+      <div class="field">
+        <label for="decimals">Δεκαδικά ψηφία</label>
+        <input type="number" id="decimals" min="0" max="4" value="1">
+        <div class="hint">Στρογγυλοποίηση εμφανιζόμενων βαθμών.</div>
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <button class="ghost-btn" id="resetBtn">↺ Επαναφορά προτύπου</button>
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <button class="ghost-btn" id="addRowBtn">+ Προσθήκη γραμμής</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-scroll">
+    <table id="pointsTable">
+      <thead>
+        <tr>
+          <th style="width:120px;">Θέση</th>
+          <th>Βάση (πίνακα)</th>
+          <th>Βαθμοί Ομάδας</th>
+          <th>Βαθμοί Αθλητή</th>
+          <th style="width:44px;"></th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div class="table-footer">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:rgba(247,243,232,0.5);" id="rowCount">0 γραμμές</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:rgba(247,243,232,0.5);" id="presetLabel"></span>
+    </div>
+  </div>
+
+  <div class="export-bar">
+    <button class="btn btn-primary" id="downloadXlsx">⬇ Λήψη σε Excel (.xlsx)</button>
+    <button class="btn btn-secondary" id="copyTsv">⧉ Αντιγραφή για Excel</button>
+    <button class="btn btn-secondary" id="downloadCsv">⬇ Λήψη σε CSV</button>
+  </div>
+
+  <footer>
+    Οι βασικές τιμές των πινάκων «Όμιλοι», «Double Elimination» και «Όμιλοι 8 ομάδων» προέρχονται από το υπάρχον φύλλο κατανομής βαθμών. Ο πίνακας «Finals» αντιστοιχεί στον Πίνακα 3 (κατανομή βαθμών Finals) της ομοσπονδίας. Σε κάθε πίνακα, βαθμοί αθλητή = βαθμοί ομάδας ÷ 2. Όλα τα κελιά είναι επεξεργάσιμα — προσάρμοσε ελεύθερα ανάλογα με τον αριθμό ομάδων της διοργάνωσής σου.
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- preset data ---------- */
+/* base = η τιμή του πίνακα ΠΡΙΝ τον συντελεστή. team = base * coefficient. athlete = team / 2 */
+const PRESETS = {
+  pool: {
+    label: "Όμιλοι (Pool Play)",
+    coefficient: 0.1,
+    rows: [
+      ["1",1000],["2",900],["3",760],["-",760],
+      ["5",600],["-",600],["-",600],["-",600],
+      ["9",480],["-",480],["-",480],["-",480],
+      ["13",360],["-",360],["-",360],["-",360],
+      ["17",240],["-",240],["-",240],["-",240],["-",240],["-",240],["-",240],["-",240],
+      ["25",120],["-",120],["-",120],["-",120],["-",120],["-",120],
+      ["-",60]
+    ]
+  },
+  doubleEl: {
+    label: "Double Elimination",
+    coefficient: 0.4,
+    rows: [
+      ["1",1000],["2",900],["3",760],["-",760],
+      ["5",600],["-",600],["7",540],["-",540],
+      ["9",480],["-",480],["-",480],["-",480],
+      ["13",360],["-",360],["-",360],["-",360],
+      ["17",240],["-",240],["-",240],["-",240]
+    ]
+  },
+  pool8: {
+    label: "Όμιλοι 8 ομάδων (Pool Play 8 teams)",
+    coefficient: 1.7,
+    rows: [
+      ["1",1000],["2",900],["3",760],["-",760],
+      ["5",600],["-",600],["7",540],["-",540],
+      ["9",480],["-",480],["-",480],["-",480],
+      ["13",360],["-",360],["-",360],["-",360],["-",360],["-",360],["-",360],["-",360],
+      ["21",240],["-",240],["-",240],["-",240],["-",240],["-",240],["-",240],["-",240],
+      ["29",120],["-",120],["-",120],["-",120],["-",120],["-",120],
+      ["-",60]
+    ]
+  },
+  finals: {
+    label: "Finals (Πίνακας 3)",
+    coefficient: 1,
+    rows: [
+      ["1",2000],["2",1800],["3",1600],["4",1400],["5",1200],["7",1080]
+    ]
+  }
+};
+
+let currentRows = [];
+let currentPresetKey = "pool";
+
+const tableBody = document.getElementById("tableBody");
+const coefficientInput = document.getElementById("coefficient");
+const decimalsInput = document.getElementById("decimals");
+const presetButtons = document.getElementById("presetButtons");
+const rowCountEl = document.getElementById("rowCount");
+const presetLabelEl = document.getElementById("presetLabel");
+const toastEl = document.getElementById("toast");
+
+function buildPresetButtons(){
+  presetButtons.innerHTML = "";
+  Object.keys(PRESETS).forEach(key=>{
+    const btn = document.createElement("button");
+    btn.className = "preset-btn" + (key===currentPresetKey ? " active" : "");
+    btn.textContent = PRESETS[key].label;
+    btn.addEventListener("click", ()=> loadPreset(key));
+    presetButtons.appendChild(btn);
+  });
+}
+
+function loadPreset(key){
+  currentPresetKey = key;
+  const preset = PRESETS[key];
+  currentRows = preset.rows.map(r => ({ pos: r[0], base: r[1] }));
+  coefficientInput.value = preset.coefficient;
+  buildPresetButtons();
+  render();
+}
+
+function fmt(n){
+  const d = Math.max(0, Math.min(4, parseInt(decimalsInput.value,10) || 0));
+  const val = Number(n.toFixed(d));
+  return val.toString();
+}
+
+function render(){
+  const coeff = parseFloat(coefficientInput.value) || 0;
+  tableBody.innerHTML = "";
+  currentRows.forEach((row, idx)=>{
+    const team = row.base * coeff;
+    const athlete = team / 2;
+    const tr = document.createElement("tr");
+    const rankNumber = parseInt(row.pos, 10);
+    if(!isNaN(rankNumber) && rankNumber <= 3){
+      tr.setAttribute("data-rank", String(rankNumber));
+    }
+    tr.innerHTML = `
+      <td>
+        <div class="pos-cell">
+          <span class="pos-badge">${row.pos === "-" ? "•" : row.pos}</span>
+          <input class="pos-input" value="${row.pos}" data-idx="${idx}" data-field="pos">
+        </div>
+      </td>
+      <td><input class="num-input" type="number" value="${row.base}" data-idx="${idx}" data-field="base"></td>
+      <td class="computed team">${fmt(team)}</td>
+      <td class="computed athlete">${fmt(athlete)}</td>
+      <td><button class="row-del" data-idx="${idx}" title="Διαγραφή γραμμής">✕</button></td>
+    `;
+    tableBody.appendChild(tr);
+  });
+  rowCountEl.textContent = `${currentRows.length} γραμμές`;
+  presetLabelEl.textContent = `Πρότυπο: ${PRESETS[currentPresetKey].label} · Συντελεστής ${coeff}`;
+
+  tableBody.querySelectorAll("input.pos-input, input.num-input").forEach(inp=>{
+    inp.addEventListener("input", onCellEdit);
+  });
+  tableBody.querySelectorAll(".row-del").forEach(btn=>{
+    btn.addEventListener("click", onRowDelete);
+  });
+}
+
+function onCellEdit(e){
+  const idx = parseInt(e.target.dataset.idx, 10);
+  const field = e.target.dataset.field;
+  if(field === "pos"){
+    currentRows[idx].pos = e.target.value;
+  } else if(field === "base"){
+    currentRows[idx].base = parseFloat(e.target.value) || 0;
+  }
+  renderComputedOnly();
+}
+
+/* lighter re-render that keeps focus in inputs while typing */
+function renderComputedOnly(){
+  const coeff = parseFloat(coefficientInput.value) || 0;
+  const rows = tableBody.querySelectorAll("tr");
+  rows.forEach((tr, idx)=>{
+    const row = currentRows[idx];
+    const team = row.base * coeff;
+    const athlete = team / 2;
+    tr.querySelector(".computed.team").textContent = fmt(team);
+    tr.querySelector(".computed.athlete").textContent = fmt(athlete);
+    const badge = tr.querySelector(".pos-badge");
+    badge.textContent = row.pos === "-" ? "•" : row.pos;
+    const rankNumber = parseInt(row.pos, 10);
+    tr.removeAttribute("data-rank");
+    if(!isNaN(rankNumber) && rankNumber <= 3){
+      tr.setAttribute("data-rank", String(rankNumber));
+    }
+  });
+  presetLabelEl.textContent = `Πρότυπο: ${PRESETS[currentPresetKey].label} · Συντελεστής ${coeff}`;
+}
+
+function onRowDelete(e){
+  const idx = parseInt(e.target.dataset.idx, 10);
+  currentRows.splice(idx, 1);
+  render();
+}
+
+document.getElementById("addRowBtn").addEventListener("click", ()=>{
+  currentRows.push({ pos: "-", base: 0 });
+  render();
+});
+
+document.getElementById("resetBtn").addEventListener("click", ()=>{
+  loadPreset(currentPresetKey);
+});
+
+coefficientInput.addEventListener("input", renderComputedOnly);
+decimalsInput.addEventListener("input", renderComputedOnly);
+
+function showToast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
+  setTimeout(()=> toastEl.classList.remove("show"), 2200);
+}
+
+function getComputedRows(){
+  const coeff = parseFloat(coefficientInput.value) || 0;
+  return currentRows.map(row=>{
+    const team = row.base * coeff;
+    const athlete = team / 2;
+    return { pos: row.pos, base: row.base, team: Number(fmt(team)), athlete: Number(fmt(athlete)) };
+  });
+}
+
+document.getElementById("copyTsv").addEventListener("click", ()=>{
+  const rows = getComputedRows();
+  const header = ["Θέση","Βαθμοί Ομάδας","Βαθμοί Αθλητή"].join("\t");
+  const lines = rows.map(r => [r.pos, r.team, r.athlete].join("\t"));
+  const tsv = [header, ...lines].join("\n");
+  navigator.clipboard.writeText(tsv).then(()=>{
+    showToast("Αντιγράφηκε — κάνε paste στο Excel");
+  }).catch(()=>{
+    showToast("Η αντιγραφή απέτυχε — δοκίμασε ξανά");
+  });
+});
+
+document.getElementById("downloadCsv").addEventListener("click", ()=>{
+  const rows = getComputedRows();
+  const header = ["Θέση","Βαθμοί Ομάδας","Βαθμοί Αθλητή"].join(",");
+  const lines = rows.map(r => [r.pos, r.team, r.athlete].join(","));
+  const csv = "\uFEFF" + [header, ...lines].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `vathmoi-${currentPresetKey}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById("downloadXlsx").addEventListener("click", ()=>{
+  const rows = getComputedRows();
+  const wsData = [["Θέση","Βαθμοί Ομάδας","Βαθμοί Αθλητή"], ...rows.map(r=>[r.pos, r.team, r.athlete])];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{wch:10},{wch:16},{wch:16}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Βαθμοί");
+  XLSX.writeFile(wb, `vathmoi-${currentPresetKey}.xlsx`);
+});
+
+/* init */
+buildPresetButtons();
+loadPreset("pool");
+</script>
+
+</body>
+</html>
